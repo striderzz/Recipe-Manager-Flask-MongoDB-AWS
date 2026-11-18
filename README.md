@@ -12,6 +12,8 @@ Local Dev ---> Docker Build ---> Amazon ECR ---> AWS Secrets Manager ---> ECS Ta
 
 📄 **[Full deployment workflow write-up (PDF)](Recipe-Manager-Deployment-Workflow.pdf)** — architecture diagram, step-by-step pipeline, and lessons learned.
 
+**Docs:** [INFO.md](INFO.md) (overview, system design and workflow) and [INTERVIEW.md](INTERVIEW.md) (interview prep).
+
 ---
 
 ## Features
@@ -63,6 +65,22 @@ Passwords are never stored in plaintext — `werkzeug.security.generate_password
 ---
 
 ## Architecture
+
+```mermaid
+flowchart LR
+  B["Browser"] -->|"HTTP on port 5000"| SG["Security group<br/>recipe-manager-sg"]
+  subgraph AWS["AWS account"]
+    SG --> T["ECS Fargate task<br/>awsvpc, public IP"]
+    subgraph Task["Container: recipe-manager"]
+      GU["Gunicorn<br/>2 workers x 2 threads"] --> FL["Flask app<br/>Flask-Login, Flask-PyMongo"]
+    end
+    T --- GU
+    ECR[("Amazon ECR<br/>recipe-manager:latest")] -->|"image pull"| T
+    SM["AWS Secrets Manager<br/>MONGO_URI, SECRET_KEY"] -->|"injected at container start"| T
+    T -->|"stdout and stderr"| CW["CloudWatch Logs<br/>/ecs/recipe-manager"]
+  end
+  FL -->|"TLS"| MDB[("MongoDB Atlas<br/>users, recipes")]
+```
 
 ```
                                    ┌─────────────────────────────┐
